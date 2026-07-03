@@ -43,17 +43,18 @@ README.md
 Escolha um provider e informe a chave correspondente:
 
 ```env
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o-mini
-OPENAI_API_KEY=sua-chave-aqui
-
-# ou
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-2.5-flash
 GEMINI_API_KEY=sua-chave-aqui
+
+# ou
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sua-chave-aqui
 ```
 
 Se quiser, você também pode usar `GOOGLE_API_KEY` para Gemini.
+O app não exige `OPENAI_API_KEY` quando `LLM_PROVIDER=gemini`.
 
 ## Como rodar
 
