@@ -157,15 +157,21 @@ def _main_types_frame(class_counts: Counter[str]) -> pd.DataFrame:
     return _as_dataframe(rows)
 
 
-def _completeness_score(total: int, missing_name: int, missing_material: int, missing_psets: int, missing_quantities: int) -> tuple[float, str, str]:
-    if total <= 0:
+def _completeness_score(
+    total_entities: int,
+    missing_name: int,
+    missing_material: int,
+    missing_psets: int,
+    missing_quantities: int,
+) -> tuple[float, str, str]:
+    if total_entities <= 0:
         return 0.0, "Indeterminado", "Modelo IFC sem entidades para auditoria."
 
     penalties = (
-        (missing_name / total) * 25.0
-        + (missing_material / total) * 25.0
-        + (missing_psets / total) * 25.0
-        + (missing_quantities / total) * 25.0
+        (missing_name / total_entities) * 25.0
+        + (missing_material / total_entities) * 25.0
+        + (missing_psets / total_entities) * 25.0
+        + (missing_quantities / total_entities) * 25.0
     )
     score = max(0.0, 100.0 - penalties)
 
