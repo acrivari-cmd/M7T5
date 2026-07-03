@@ -43,6 +43,17 @@ def _ensure_api_environment(provider: str, api_key: str) -> None:
         return
 
 
+def _validate_model_for_provider(provider: str, model_name: str) -> None:
+    provider = provider.strip().lower()
+    model_name = model_name.strip().lower()
+
+    if provider == "gemini" and model_name.startswith("gpt"):
+        raise ValueError("O provider gemini não pode usar modelos OpenAI.")
+
+    if provider == "openai" and model_name.startswith("gemini"):
+        raise ValueError("O provider openai não pode usar modelos Gemini.")
+
+
 def _build_model(provider: str, model_name: str) -> Any:
     if provider == "openai":
         for import_path in (
@@ -97,6 +108,7 @@ def build_audit_agent(provider: str, model_name: str, api_key: str) -> AuditAgen
     if not model_name:
         raise ValueError("Informe um nome de modelo valido na barra lateral.")
 
+    _validate_model_for_provider(provider, model_name)
     _ensure_api_environment(provider, api_key)
     model = _build_model(provider, model_name)
 
