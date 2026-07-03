@@ -47,14 +47,24 @@ LLM_PROVIDER=gemini
 LLM_MODEL=gemini-2.5-flash
 GEMINI_API_KEY=sua-chave-aqui
 
-# ou
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o-mini
-OPENAI_API_KEY=sua-chave-aqui
+# Alternativa OpenAI
+# LLM_PROVIDER=openai
+# LLM_MODEL=gpt-4o-mini
+# OPENAI_API_KEY=sua-chave-aqui
 ```
 
 Se quiser, você também pode usar `GOOGLE_API_KEY` para Gemini.
 O app não exige `OPENAI_API_KEY` quando `LLM_PROVIDER=gemini`.
+
+## Sidebar
+
+A barra lateral possui três controles principais:
+
+- `Provider`: escolha entre `gemini` e `openai`
+- `Modelo`: lista suspensa com modelos compatíveis com o provider
+- `GEMINI_API_KEY` ou `OPENAI_API_KEY`: campo seguro para a chave da API
+
+Se você trocar o provider, o modelo é ajustado automaticamente para uma opção compatível.
 
 ## API Key na interface
 
@@ -70,6 +80,9 @@ O campo exibido muda conforme o provider selecionado:
 
 - `GEMINI_API_KEY` quando `LLM_PROVIDER=gemini`
 - `OPENAI_API_KEY` quando `LLM_PROVIDER=openai`
+
+O app tenta sugerir o provider com base nas chaves disponíveis em `os.environ` e `st.secrets`.
+Se não houver nenhuma chave configurada, o padrão é `gemini`.
 
 ## Como rodar
 
