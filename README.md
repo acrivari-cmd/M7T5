@@ -56,6 +56,21 @@ OPENAI_API_KEY=sua-chave-aqui
 Se quiser, você também pode usar `GOOGLE_API_KEY` para Gemini.
 O app não exige `OPENAI_API_KEY` quando `LLM_PROVIDER=gemini`.
 
+## API Key na interface
+
+A barra lateral possui um campo seguro para a chave da API.
+
+Prioridade de resolução:
+
+1. chave digitada na interface;
+2. variável de ambiente;
+3. `st.secrets` no Streamlit Cloud.
+
+O campo exibido muda conforme o provider selecionado:
+
+- `GEMINI_API_KEY` quando `LLM_PROVIDER=gemini`
+- `OPENAI_API_KEY` quando `LLM_PROVIDER=openai`
+
 ## Como rodar
 
 ```bash
