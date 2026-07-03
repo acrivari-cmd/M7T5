@@ -28,6 +28,50 @@ def reset_chat() -> None:
     st.session_state.chat_messages = []
 
 
+def _secret_lookup(secret_key: str) -> str:
+    try:
+        value = st.secrets.get(secret_key, "")
+        if isinstance(value, str):
+            return value.strip()
+    except Exception:
+        pass
+
+    try:
+        grouped = st.secrets.get("api_keys", {})
+        if isinstance(grouped, dict):
+            value = grouped.get(secret_key, "")
+            if isinstance(value, str):
+                return value.strip()
+    except Exception:
+        pass
+
+    return ""
+
+
+def resolve_api_key(provider: str, typed_key: str) -> str:
+    provider = provider.strip().lower()
+    typed_key = typed_key.strip()
+    if typed_key:
+        return typed_key
+
+    if provider == "openai":
+        env_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if env_key:
+            return env_key
+        return _secret_lookup("OPENAI_API_KEY")
+
+    if provider == "gemini":
+        env_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
+        if env_key:
+            return env_key
+        secret_key = _secret_lookup("GEMINI_API_KEY")
+        if secret_key:
+            return secret_key
+        return _secret_lookup("GOOGLE_API_KEY")
+
+    return ""
+
+
 def render_dataframe(title: str, frame: pd.DataFrame) -> None:
     st.subheader(title)
     if frame.empty:
@@ -62,9 +106,27 @@ def main() -> None:
         )
         st.session_state.llm_provider = provider
         st.session_state.llm_model = model_name.strip()
-        st.caption(
-            "Use OPENAI_API_KEY apenas quando o provider for openai. Use GEMINI_API_KEY quando o provider for gemini."
+
+        api_label = "GEMINI_API_KEY" if provider == "gemini" else "OPENAI_API_KEY"
+        typed_api_key = st.text_input(
+            api_label,
+            type="password",
+            key=f"api_key_{provider}",
+            placeholder=f"Digite {api_label} aqui",
+            help=(
+                "A chave digitada aqui tem prioridade sobre variáveis de ambiente e st.secrets."
+            ),
         )
+        api_key = resolve_api_key(provider, typed_api_key)
+
+        if typed_api_key:
+            st.caption("A chave informada na interface será usada nesta sessão.")
+        elif api_key:
+            st.caption("Usando chave carregada do ambiente ou de st.secrets.")
+        else:
+            st.warning(
+                f"Nenhuma chave encontrada para {api_label}. Digite a chave ou configure o ambiente/st.secrets."
+            )
 
         st.divider()
         st.subheader("Arquivo IFC")
@@ -148,8 +210,17 @@ def main() -> None:
 
         if st.button("Gerar análise técnica com Agno", type="primary"):
             try:
+                if not api_key:
+                    st.error(
+                        "Informe a chave de API na sidebar ou configure o ambiente/st.secrets antes de gerar o relatório."
+                    )
+                    st.stop()
                 with st.spinner("O agente está analisando o resumo estruturado do IFC..."):
-                    agent = build_audit_agent(provider=provider, model_name=model_name)
+                    agent = build_audit_agent(
+                        provider=provider,
+                        model_name=model_name,
+                        api_key=api_key,
+                    )
                     report = generate_audit_report(agent, analysis)
                     st.session_state.ifc_agent_report = report
             except Exception as exc:
@@ -181,7 +252,15 @@ def main() -> None:
                 st.markdown(user_message)
 
             try:
-                agent = build_audit_agent(provider=provider, model_name=model_name)
+                if not api_key:
+                    raise ValueError(
+                        "Informe a chave de API na sidebar ou configure o ambiente/st.secrets."
+                    )
+                agent = build_audit_agent(
+                    provider=provider,
+                    model_name=model_name,
+                    api_key=api_key,
+                )
                 answer = agent.answer_question(
                     question=user_message,
                     context=chat_context,
