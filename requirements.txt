@@ -1,0 +1,7 @@
+streamlit
+pandas
+python-dotenv
+ifcopenshell
+agno
+openai
+google-genai
