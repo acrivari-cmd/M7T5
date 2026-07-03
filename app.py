@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -48,28 +49,62 @@ def _secret_lookup(secret_key: str) -> str:
     return ""
 
 
-def resolve_api_key(provider: str, typed_key: str) -> str:
+def resolve_api_key(provider: str, typed_key: str) -> tuple[str, str]:
     provider = provider.strip().lower()
     typed_key = typed_key.strip()
     if typed_key:
-        return typed_key
+        return typed_key, "interface"
 
     if provider == "openai":
         env_key = os.getenv("OPENAI_API_KEY", "").strip()
         if env_key:
-            return env_key
-        return _secret_lookup("OPENAI_API_KEY")
+            return env_key, "ambiente"
+        secret_key = _secret_lookup("OPENAI_API_KEY")
+        if secret_key:
+            return secret_key, "st.secrets"
+        return "", ""
 
     if provider == "gemini":
         env_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
         if env_key:
-            return env_key
+            return env_key, "ambiente"
         secret_key = _secret_lookup("GEMINI_API_KEY")
         if secret_key:
-            return secret_key
-        return _secret_lookup("GOOGLE_API_KEY")
+            return secret_key, "st.secrets"
+        secret_key = _secret_lookup("GOOGLE_API_KEY")
+        if secret_key:
+            return secret_key, "st.secrets"
+        return "", ""
 
-    return ""
+    return "", ""
+
+
+def format_llm_error(provider: str, exc: Exception) -> str:
+    message = str(exc)
+    lowered = message.lower()
+
+    if any(
+        token in lowered
+        for token in (
+            "incorrect api key",
+            "invalid api key",
+            "api key provided",
+            "authentication",
+            "unauthorized",
+            "unauthenticated",
+        )
+    ):
+        if provider == "gemini":
+            return (
+                "A chave do Gemini foi recusada. Verifique se o valor informado em GEMINI_API_KEY "
+                "está correto e corresponde ao provider selecionado."
+            )
+        return (
+            "A chave da OpenAI foi recusada. Verifique se o valor informado em OPENAI_API_KEY "
+            "está correto e corresponde ao provider selecionado."
+        )
+
+    return f"Falha ao gerar resposta com IA: {exc}"
 
 
 def render_dataframe(title: str, frame: pd.DataFrame) -> None:
@@ -117,12 +152,12 @@ def main() -> None:
                 "A chave digitada aqui tem prioridade sobre variáveis de ambiente e st.secrets."
             ),
         )
-        api_key = resolve_api_key(provider, typed_api_key)
+        api_key, api_source = resolve_api_key(provider, typed_api_key)
 
         if typed_api_key:
             st.caption("A chave informada na interface será usada nesta sessão.")
         elif api_key:
-            st.caption("Usando chave carregada do ambiente ou de st.secrets.")
+            st.caption(f"Usando chave carregada de {api_source}.")
         else:
             st.warning(
                 f"Nenhuma chave encontrada para {api_label}. Digite a chave ou configure o ambiente/st.secrets."
@@ -224,7 +259,7 @@ def main() -> None:
                     report = generate_audit_report(agent, analysis)
                     st.session_state.ifc_agent_report = report
             except Exception as exc:
-                st.error(f"Falha ao gerar relatório com IA: {exc}")
+                st.error(format_llm_error(provider, exc))
 
         if st.session_state.ifc_agent_report:
             st.markdown(st.session_state.ifc_agent_report)
@@ -267,7 +302,7 @@ def main() -> None:
                     history=st.session_state.chat_messages,
                 )
             except Exception as exc:
-                answer = f"Não consegui responder com o LLM configurado. Detalhe: {exc}"
+                answer = format_llm_error(provider, exc)
 
             st.session_state.chat_messages.append(
                 {"role": "assistant", "content": answer}
