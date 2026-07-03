@@ -59,14 +59,28 @@ def _secret_lookup(secret_key: str) -> str:
     return ""
 
 
+def _session_key_lookup(provider: str) -> str:
+    provider = provider.strip().lower()
+    key_name = "api_key_gemini" if provider == "gemini" else "api_key_openai"
+    value = st.session_state.get(key_name, "")
+    if isinstance(value, str):
+        return value.strip()
+    return ""
+
+
 def _provider_key_available(provider: str) -> bool:
     provider = provider.strip().lower()
     if provider == "openai":
-        return bool(os.getenv("OPENAI_API_KEY", "").strip() or _secret_lookup("OPENAI_API_KEY"))
+        return bool(
+            _session_key_lookup("openai")
+            or os.getenv("OPENAI_API_KEY", "").strip()
+            or _secret_lookup("OPENAI_API_KEY")
+        )
 
     if provider == "gemini":
         return bool(
-            os.getenv("GEMINI_API_KEY", "").strip()
+            _session_key_lookup("gemini")
+            or os.getenv("GEMINI_API_KEY", "").strip()
             or os.getenv("GOOGLE_API_KEY", "").strip()
             or _secret_lookup("GEMINI_API_KEY")
             or _secret_lookup("GOOGLE_API_KEY")
