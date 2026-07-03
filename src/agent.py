@@ -25,18 +25,33 @@ class AuditAgent:
         return _run_agent(self.agent, prompt)
 
 
-def _ensure_api_environment(provider: str) -> None:
+def _resolve_api_key(provider: str) -> str:
+    provider = provider.strip().lower()
     if provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        if api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
+        return os.getenv("OPENAI_API_KEY", "").strip()
+
+    if provider == "gemini":
+        return os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
+
+    raise ValueError("Provider invalido. Use openai ou gemini.")
+
+
+def _ensure_api_environment(provider: str) -> None:
+    api_key = _resolve_api_key(provider)
+    if not api_key:
+        if provider == "openai":
+            raise ValueError("OPENAI_API_KEY nao foi definida no ambiente.")
+        if provider == "gemini":
+            raise ValueError("GEMINI_API_KEY nao foi definida no ambiente.")
+
+    if provider == "openai":
+        os.environ["OPENAI_API_KEY"] = api_key
         return
 
     if provider == "gemini":
-        api_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
-        if api_key:
-            os.environ["GEMINI_API_KEY"] = api_key
-            os.environ["GOOGLE_API_KEY"] = api_key
+        os.environ["GEMINI_API_KEY"] = api_key
+        os.environ["GOOGLE_API_KEY"] = api_key
+        return
 
 
 def _build_model(provider: str, model_name: str) -> Any:
