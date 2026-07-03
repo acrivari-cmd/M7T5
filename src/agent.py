@@ -25,24 +25,13 @@ class AuditAgent:
         return _run_agent(self.agent, prompt)
 
 
-def _resolve_api_key(provider: str) -> str:
-    provider = provider.strip().lower()
-    if provider == "openai":
-        return os.getenv("OPENAI_API_KEY", "").strip()
-
-    if provider == "gemini":
-        return os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
-
-    raise ValueError("Provider invalido. Use openai ou gemini.")
-
-
-def _ensure_api_environment(provider: str) -> None:
-    api_key = _resolve_api_key(provider)
+def _ensure_api_environment(provider: str, api_key: str) -> None:
+    api_key = (api_key or "").strip()
     if not api_key:
         if provider == "openai":
-            raise ValueError("OPENAI_API_KEY nao foi definida no ambiente.")
+            raise ValueError("OPENAI_API_KEY nao foi definida no ambiente ou na interface.")
         if provider == "gemini":
-            raise ValueError("GEMINI_API_KEY nao foi definida no ambiente.")
+            raise ValueError("GEMINI_API_KEY nao foi definida no ambiente ou na interface.")
 
     if provider == "openai":
         os.environ["OPENAI_API_KEY"] = api_key
@@ -97,7 +86,7 @@ def _run_agent(agent: Any, prompt: str) -> str:
     return str(response).strip()
 
 
-def build_audit_agent(provider: str, model_name: str) -> AuditAgent:
+def build_audit_agent(provider: str, model_name: str, api_key: str) -> AuditAgent:
     if Agent is None:
         raise ImportError(
             "Nao foi possivel importar Agno. Verifique se a dependencia agno esta instalada."
@@ -108,7 +97,7 @@ def build_audit_agent(provider: str, model_name: str) -> AuditAgent:
     if not model_name:
         raise ValueError("Informe um nome de modelo valido na barra lateral.")
 
-    _ensure_api_environment(provider)
+    _ensure_api_environment(provider, api_key)
     model = _build_model(provider, model_name)
 
     instructions = [
