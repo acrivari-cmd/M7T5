@@ -62,6 +62,9 @@ def main() -> None:
         )
         st.session_state.llm_provider = provider
         st.session_state.llm_model = model_name.strip()
+        st.caption(
+            "Use OPENAI_API_KEY apenas quando o provider for openai. Use GEMINI_API_KEY quando o provider for gemini."
+        )
 
         st.divider()
         st.subheader("Arquivo IFC")
