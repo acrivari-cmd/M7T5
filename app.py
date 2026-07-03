@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -16,6 +15,17 @@ st.set_page_config(
     page_icon="🏗️",
     layout="wide",
 )
+
+
+MODEL_OPTIONS = {
+    "gemini": ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
+}
+
+MODEL_DEFAULTS = {
+    "gemini": "gemini-2.5-flash",
+    "openai": "gpt-4o-mini",
+}
 
 
 def ensure_session_state() -> None:
@@ -47,6 +57,38 @@ def _secret_lookup(secret_key: str) -> str:
         pass
 
     return ""
+
+
+def _provider_key_available(provider: str) -> bool:
+    provider = provider.strip().lower()
+    if provider == "openai":
+        return bool(os.getenv("OPENAI_API_KEY", "").strip() or _secret_lookup("OPENAI_API_KEY"))
+
+    if provider == "gemini":
+        return bool(
+            os.getenv("GEMINI_API_KEY", "").strip()
+            or os.getenv("GOOGLE_API_KEY", "").strip()
+            or _secret_lookup("GEMINI_API_KEY")
+            or _secret_lookup("GOOGLE_API_KEY")
+        )
+
+    return False
+
+
+def _suggest_provider(env_provider: str) -> str:
+    env_provider = env_provider.strip().lower()
+    gemini_available = _provider_key_available("gemini")
+    openai_available = _provider_key_available("openai")
+
+    if gemini_available and not openai_available:
+        return "gemini"
+    if openai_available and not gemini_available:
+        return "openai"
+    if env_provider in {"gemini", "openai"}:
+        return env_provider
+    if gemini_available and openai_available:
+        return "gemini"
+    return "gemini"
 
 
 def resolve_api_key(provider: str, typed_key: str) -> tuple[str, str]:
@@ -126,21 +168,36 @@ def main() -> None:
     with st.sidebar:
         st.header("Configuração do LLM")
         env_provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
-        env_model = os.getenv(
-            "LLM_MODEL",
-            "gpt-4o-mini" if env_provider == "openai" else "gemini-2.5-flash",
-        ).strip()
+
+        if "llm_provider" not in st.session_state:
+            st.session_state.llm_provider = _suggest_provider(env_provider)
+
         provider = st.selectbox(
             "Provider",
             options=["openai", "gemini"],
-            index=0 if env_provider != "gemini" else 1,
+            key="llm_provider",
         )
-        model_name = st.text_input(
+
+        model_options = MODEL_OPTIONS[provider]
+        model_key = f"llm_model_{provider}"
+        if st.session_state.get("llm_model_provider") != provider:
+            st.session_state[model_key] = MODEL_DEFAULTS[provider]
+            st.session_state.llm_model_provider = provider
+
+        if st.session_state.get(model_key) not in model_options:
+            st.session_state[model_key] = MODEL_DEFAULTS[provider]
+
+        model_name = st.selectbox(
             "Modelo",
-            value=st.session_state.get("llm_model") or env_model,
+            options=model_options,
+            key=model_key,
         )
-        st.session_state.llm_provider = provider
-        st.session_state.llm_model = model_name.strip()
+        st.session_state.llm_model = model_name
+
+        if provider == "gemini":
+            st.session_state.llm_model_gemini = model_name
+        else:
+            st.session_state.llm_model_openai = model_name
 
         api_label = "GEMINI_API_KEY" if provider == "gemini" else "OPENAI_API_KEY"
         typed_api_key = st.text_input(
@@ -162,6 +219,9 @@ def main() -> None:
             st.warning(
                 f"Nenhuma chave encontrada para {api_label}. Digite a chave ou configure o ambiente/st.secrets."
             )
+
+        st.caption(f"Provider ativo: {provider}")
+        st.caption(f"Modelo compatível: {model_name}")
 
         st.divider()
         st.subheader("Arquivo IFC")
