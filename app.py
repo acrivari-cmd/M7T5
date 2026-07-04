@@ -33,6 +33,8 @@ def ensure_session_state() -> None:
     st.session_state.setdefault("ifc_agent_report", None)
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("last_uploaded_name", None)
+    st.session_state.setdefault("selected_llm_provider", None)
+    st.session_state.setdefault("selected_llm_model", None)
 
 
 def reset_chat() -> None:
@@ -183,35 +185,29 @@ def main() -> None:
         st.header("Configuração do LLM")
         env_provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
 
-        if "llm_provider" not in st.session_state:
-            st.session_state.llm_provider = _suggest_provider(env_provider)
+        if st.session_state.selected_llm_provider not in {"openai", "gemini"}:
+            st.session_state.selected_llm_provider = _suggest_provider(env_provider)
 
         provider = st.selectbox(
             "Provider",
             options=["openai", "gemini"],
-            key="llm_provider",
+            key="selected_llm_provider",
         )
 
         model_options = MODEL_OPTIONS[provider]
-        model_key = f"llm_model_{provider}"
-        if st.session_state.get("llm_model_provider") != provider:
-            st.session_state[model_key] = MODEL_DEFAULTS[provider]
-            st.session_state.llm_model_provider = provider
+        current_model = st.session_state.get("selected_llm_model")
+        if current_model not in model_options:
+            current_model = MODEL_DEFAULTS[provider]
+            st.session_state.selected_llm_model = current_model
 
-        if st.session_state.get(model_key) not in model_options:
-            st.session_state[model_key] = MODEL_DEFAULTS[provider]
-
+        model_index = model_options.index(current_model)
         model_name = st.selectbox(
             "Modelo",
             options=model_options,
-            key=model_key,
+            index=model_index,
+            key=f"model_widget_{provider}",
         )
-        st.session_state.llm_model = model_name
-
-        if provider == "gemini":
-            st.session_state.llm_model_gemini = model_name
-        else:
-            st.session_state.llm_model_openai = model_name
+        st.session_state.selected_llm_model = model_name
 
         api_label = "GEMINI_API_KEY" if provider == "gemini" else "OPENAI_API_KEY"
         typed_api_key = st.text_input(
